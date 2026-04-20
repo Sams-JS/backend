@@ -1,53 +1,62 @@
-package main
+import { setInner } from "https://cdn.jsdelivr.net/gh/crootjs/lib@0.0.1/element.min.js";
+import { postJSON } from "https://cdn.jsdelivr.net/gh/crootjs/lib@0.0.1/api.min.js";
 
-import (
-	"encoding/json"
-	"net/http"
-	"os"
-)
+const BACKEND_URL = "https://hopeful-airport-tir.sgp.dom.my.id/login";
 
-type LoginRequest struct {
-	Token string `json:"token"`
+function startGoogleLogin() {
+
+    function handleLogin(response) {
+
+        setInner("status", "⏳ Memverifikasi login...");
+
+        postJSON(
+            BACKEND_URL,
+            "Content-Type",
+            "application/json",
+            {
+                token: response.credential
+            },
+            function(result){
+
+                console.log(result);
+
+                if(result.message === "Login Sukses!"){
+                    setInner("status", "✅ Login Berhasil!");
+
+                    // pindah halaman jika ingin
+                    // window.location.href = "dashboard.html";
+
+                }else{
+                    setInner("status", "❌ " + result.message);
+                }
+
+            }
+        );
+    }
+
+    google.accounts.id.initialize({
+        client_id: "700649521479-pg9lerspa7oos4b5t2ihimf0j76g60l7.apps.googleusercontent.com",
+        callback: handleLogin
+    });
+
+    google.accounts.id.renderButton(
+        document.getElementById("google-btn"),
+        {
+            theme: "outline",
+            size: "large",
+            shape: "pill",
+            width: 280
+        }
+    );
 }
 
-func main() {
-	http.HandleFunc("/login", loginHandler)
+window.onload = function () {
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+    const tungguGoogle = setInterval(() => {
+        if(window.google && google.accounts){
+            clearInterval(tungguGoogle);
+            startGoogleLogin();
+        }
+    }, 300);
 
-	http.ListenAndServe(":"+port, nil)
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	var req LoginRequest
-	json.NewDecoder(r.Body).Decode(&req)
-
-	resp, err := http.Get(
-		"https://oauth2.googleapis.com/tokeninfo?id_token=" + req.Token,
-	)
-
-	if err != nil || resp.StatusCode != 200 {
-		json.NewEncoder(w).Encode(map[string]string{
-			"message": "Login gagal",
-		})
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Login Sukses!",
-	})
-}
+};
